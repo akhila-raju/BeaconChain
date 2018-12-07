@@ -14,6 +14,7 @@
 package net.consensys.beaconchain.state;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static net.consensys.beaconchain.Constants.*;
 
 import net.consensys.beaconchain.datastructures.BeaconChainState.CandidatePoWReceiptRootRecord;
 import net.consensys.beaconchain.datastructures.BeaconChainState.CrosslinkRecord;
@@ -24,6 +25,7 @@ import net.consensys.beaconchain.datastructures.BeaconChainState.ShardReassignme
 import net.consensys.beaconchain.datastructures.BeaconChainState.ValidatorRecord;
 import net.consensys.beaconchain.ethereum.core.Hash;
 import net.consensys.beaconchain.util.bytes.Bytes3;
+import net.consensys.beaconchain.util.bytes.Bytes32;
 import net.consensys.beaconchain.util.uint.UInt64;
 
 import java.util.Arrays;
@@ -66,6 +68,202 @@ public class BeaconState {
   // Misc
   private UInt64 genesis_time;
   private ForkData fork_data;
+
+
+  /**
+   * Gets indices of active validators from ``validators``.
+   * @param validators
+   * @return
+   */
+  private int[] get_active_validator_indices(ValidatorRecord[] validators) {
+    // return [i for i, v in enumerate(validators) if v.status in [ACTIVE, ACTIVE_PENDING_EXIT]]
+    UInt64[] active_statuses = new UInt64[]{UInt64.valueOf(ACTIVE), UInt64.valueOf(ACTIVE_PENDING_EXIT)};
+    for (int i = 0; i < validators.length; i++) {
+      if (active_statuses.contains(validators[i].status)) {
+
+      }
+    }
+  }
+
+
+  /**
+   * Shuffles ``validators`` into shard committees using ``seed`` as entropy.
+   * @param seed
+   * @param validators
+   * @param crosslinking_start_shard
+   * @return
+   */
+  private ShardAndCommittee[][] get_new_shuffling(Hash seed, ValidatorRecord[] validators, int crosslinking_start_shard) {
+    int[] active_validator_indices = get_active_validator_indices(validators);
+    int committees_per_slot = BeaconStateHelperFunctions.clamp(1, SHARD_COUNT / EPOCH_LENGTH,
+        active_validator_indices.length / EPOCH_LENGTH / TARGET_COMMITTEE_SIZE);
+
+    // Shuffle with seed
+    Object[] shuffled_active_validator_indices =
+        BeaconStateHelperFunctions.shuffle((active_validator_indices, seed);
+
+    // Split the shuffled list into epoch_length pieces
+    Object[] validators_per_slot =
+        BeaconStateHelperFunctions.split(shuffled_active_validator_indices, EPOCH_LENGTH);
+
+    ShardAndCommittee[][] output;
+
+    for (int slot = 0; slot < validators_per_slot.length; slot++) {
+      // Split the shuffled list into committees_per_slot pieces
+      Object[] shard_indices =
+          BeaconStateHelperFunctions.split(validators_per_slot[slot], committees_per_slot);
+
+      int shard_id_start = crosslinking_start_shard + slot * committees_per_slot;
+
+      for (int shard_position = 0; shard_position < shard_indices.length; shard_position++) {
+        shard_indices[shard_position] =
+            new ShardAndCommittee(((shard_id_start + shard_position) % SHARD_COUNT,
+                shard_indices[shard_position], active_validator_indices.length);
+      }
+
+      output[slot] = shards_and_committees_for_slot;
+    }
+
+    return output;
+  }
+
+
+  /**
+   * Returns the ``ShardCommittee`` for the ``slot``.
+   * @param state
+   * @param slot
+   * @return
+   */
+  private ShardAndCommittee[] get_shard_committees_at_slot(BeaconState state, int slot) {
+    int earliest_slot_in_array = (int) state.latest_state_recalculation_slot.getValue() - EPOCH_LENGTH;
+    assert earliest_slot_in_array <= slot && slot < earliest_slot_in_array + EPOCH_LENGTH * 2;
+    return state.shard_committees_at_slots[slot - earliest_slot_in_array];
+  }
+
+
+  /**
+   * Returns the block hash at a recent ``slot``.
+   * @param state
+   * @param current_block
+   * @param slot
+   * @return
+   */
+  private Hash get_block_hash(BeaconState state, BeaconBlock current_block, int slot) {
+    UInt64 earliest_slot_in_array = current_block.slot.minus(UInt64.valueOf(state.latest_block_hashes.length));
+    assert earliest_slot_in_array.getValue() <= slot && slot < current_block.slot.getValue();
+    return state.latest_block_hashes[slot - (int) earliest_slot_in_array.getValue()];
+  }
+
+
+  /**
+   * Returns the beacon proposer index for the ``slot``.
+   * @param state
+   * @param slot
+   * @return
+   */
+  private int get_beacon_proposer_index(BeaconState state, int slot) {
+    int[] first_committee = get_shard_committees_at_slot(state, slot)[0].committee;
+    return first_committee[slot % first_committee.length];
+  }
+
+
+  /**
+   *   Returns the participant indices at for the ``attestation_data`` and ``participation_bitfield``.
+   * @param state
+   * @param attestation_data
+   * @param participation_bitfield
+   * @return
+   */
+  private int[] get_attestation_participants(BeaconState state, AttestationData attestation_data,
+                                             Bytes32 participation_bitfield) {
+
+    // Find the relevant committee
+    ShardAndCommittee[] shard_committees = get_shard_committees_at_slot(state, (int) attestation_data.slot.getValue());
+    ShardAndCommittee[] shard_committee = new ShardAndCommittee[];
+    int index = 0;
+    for (int i = 0; i < shard_committees.length; i++) {
+      if (shard_committees[i].shard == attestation_data.shard) {
+        shard_committee[index] = shard_committees[i];
+        index++;
+      }
+    }
+    assert participation_bitfield.size() == ceil_div8(shard_committee.committee.length);
+
+    // Find the participating attesters in the committee
+    int[] participants = new int[];
+    index = 0;
+    for (int i = 0; i < shard_committee.committee.length; i++) {
+      int participation_bit = (participation_bitfield[i/8] >> (7 - (i % 8))) % 2;
+      if (participation_bit == 1) {
+        participants[index] = shard_committee.committee[i];
+      }
+    }
+  }
+
+
+  /**
+   *   Returns the effective balance (also known as "balance at stake") for the ``validator``.
+   * @param validator
+   * @return
+   */
+  private int get_effective_balance(ValidatorRecord validator) {
+    return Math.min((int) validator.balance.getValue(), MAX_DEPOSIT);
+  }
+
+
+  /**
+   * Compute the next hash in the validator registry delta hash chain.
+   * @param current_validator_registry_delta_chain_tip
+   * @param index
+   * @param pubkey
+   * @param flag
+   * @return
+   */
+  private Hash get_new_validator_registry_delta_chain_tip(Hash current_validator_registry_delta_chain_tip,
+                                                          int index, int pubkey, int flag) {
+//    return Hash.hash(current_validator_registry_delta_chain_tip +
+//            bytes1(flag) +
+//            bytes3(index) +
+//            bytes32(pubkey);
+//)
+  }
+
+
+  /**
+   *
+   * @param fork_data
+   * @param slot
+   * @param domain_type
+   * @return
+   */
+  private int get_domain(ForkData fork_data, int slot, int domain_type) {
+    return get_fork_version(fork_data, slot) * Math.pow(2, 32) + domain_type;
+  }
+
+
+  /**
+   * The largest integer ``x`` such that ``x**2`` is less than ``n``.
+   * @param n
+   * @return
+   */
+  private int integer_squareroot(int n) {
+    int x = n;
+    int y = x + 1 / 2;
+    while (y < x) {
+      x = y;
+      y = x + n / x / 2;
+    }
+    return x;
+  }
+
+
+
+
+
+
+
+
+
 
   static class BeaconStateHelperFunctions {
 
