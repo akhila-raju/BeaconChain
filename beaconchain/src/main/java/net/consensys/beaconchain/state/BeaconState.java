@@ -76,13 +76,15 @@ public class BeaconState {
    * @return
    */
   private int[] get_active_validator_indices(ValidatorRecord[] validators) {
-    // return [i for i, v in enumerate(validators) if v.status in [ACTIVE, ACTIVE_PENDING_EXIT]]
-    UInt64[] active_statuses = new UInt64[]{UInt64.valueOf(ACTIVE), UInt64.valueOf(ACTIVE_PENDING_EXIT)};
+    int index = 0;
+    int[] active_validators = new int[];
     for (int i = 0; i < validators.length; i++) {
-      if (active_statuses.contains(validators[i].status)) {
-
+      if (validators[i].status == UInt64.valueOf(ACTIVE) || validators[i].status == UInt64.valueOf(ACTIVE_PENDING_EXIT)) {
+        active_validators[index] = i;
+        index++;
       }
     }
+    return active_validators;
   }
 
 
@@ -237,7 +239,7 @@ public class BeaconState {
    * @return
    */
   private int get_domain(ForkData fork_data, int slot, int domain_type) {
-    return get_fork_version(fork_data, slot) * Math.pow(2, 32) + domain_type;
+    return get_fork_version(fork_data, slot) * (int) Math.pow(2, 32) + domain_type;
   }
 
 
@@ -257,9 +259,19 @@ public class BeaconState {
   }
 
 
+//  def min_empty_validator_index(validators: List[ValidatorRecord], current_slot: int) -> int:
+//      for i, v in enumerate(validators):
+//      if v.balance == 0 and v.latest_status_change_slot + ZERO_BALANCE_VALIDATOR_TTL <= current_slot:
+//      return i
+//    return None
 
 
-
+  private int get_fork_version(ForkData fork_data, int slot) {
+    if (slot < fork_data.fork_slot.getValue()) {
+      return (int) fork_data.pre_fork_version.getValue();
+    }
+    return (int) fork_data.post_fork_version.getValue();
+  }
 
 
 
