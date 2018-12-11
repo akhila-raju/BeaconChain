@@ -20,8 +20,8 @@ import net.consensys.beaconchain.util.uint.UInt64;
 public class BeaconBlock {
 
   // Header
-  private UInt64 slot;
-  private Hash[] ancestor_hashes;
+  public UInt64 slot;
+  public Hash[] ancestor_hashes;
   private Hash state_root;
   private Hash randao_reveal;
   private Hash candidate_pow_receipt_root;
