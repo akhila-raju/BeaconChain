@@ -324,7 +324,7 @@ public class BeaconState {
   private int min_empty_validator_index(ValidatorRecord[] validators, int current_slot) {
     for (int i = 0; i < validators.length; i++) {
       ValidatorRecord v = validators[i];
-      if (v.balance == UInt64.valueOf(0) && v.latest_status_change_slot.getValue() + ZERO_BALANCE_VALIDATOR_TTL
+      if (v.balance == UInt64.MIN_VALUE && v.latest_status_change_slot.getValue() + ZERO_BALANCE_VALIDATOR_TTL
           <= current_slot) {
         return i;
       }
