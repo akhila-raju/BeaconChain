@@ -269,17 +269,21 @@ public class BeaconState {
   }
 
 
-  private def verify_casper_votes(state: BeaconState, votes: SlashableVoteData) -> bool:
-      if len(votes.aggregate_signature_poc_0_indices) + len(votes.aggregate_signature_poc_1_indices) > MAX_CASPER_VOTES:
-      return False
-
-  pubs = [aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_0_indices]),
-  aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_1_indices])]
-      return BLSMultiVerify(pubkeys=pubs, msgs=[SSZTreeHash(votes)+bytes1(0), SSZTreeHash(votes)+bytes1(1), sig=aggregate_signature)
-
-
+  /**
+   *
+   * @param state
+   * @param votes
+   * @return
+   */
   private boolean verify_casper_votes(BeaconState state, SlashableVoteData votes) {
+    if ((votes.aggregate_signature_poc_0_indices.length + votes.aggregate_signature_poc_1_indices.length)
+        > MAX_CASPER_VOTES) {
+      return false;
+    }
+//  pubs = [aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_0_indices]),
+//  aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_1_indices])]
 
+//      return BLSMultiVerify(pubkeys=pubs, msgs=[SSZTreeHash(votes)+bytes1(0), SSZTreeHash(votes)+bytes1(1), sig=aggregate_signature)
   }
 
 
