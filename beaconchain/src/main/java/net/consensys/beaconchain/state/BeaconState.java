@@ -211,25 +211,34 @@ public class BeaconState {
 
     // Find the relevant committee
     ShardCommittee[] shard_committees = get_shard_committees_at_slot(state, (int) attestation_data.slot.getValue());
-    ShardCommittee[] shard_committee = new ShardCommittee[];
-    int index = 0;
+    ShardCommittee shard_committee;
     for (int i = 0; i < shard_committees.length; i++) {
       if (shard_committees[i].shard == attestation_data.shard) {
-        shard_committee[index] = shard_committees[i];
-        index++;
+        shard_committee = shard_committees[i];
+        break;
       }
     }
     assert participation_bitfield.size() == ceil_div8(shard_committee.committee.length);
 
     // Find the participating attesters in the committee
     int[] participants = new int[];
-    index = 0;
+    int index = 0;
     for (int i = 0; i < shard_committee.committee.length; i++) {
-      int participation_bit = (participation_bitfield[i/8] >> (7 - (i % 8))) % 2;
+      int participation_bit = (participation_bitfield.extractArray()[i/8] >> (7 - (i % 8))) % 2;
       if (participation_bit == 1) {
         participants[index] = shard_committee.committee[i];
       }
     }
+  }
+
+
+  /**
+   *
+   * @param x
+   * @return
+   */
+  private int ceil_div8(int x) {
+    return (x + 7) / 8;
   }
 
 
