@@ -25,7 +25,7 @@ public class ValidatorRecord {
   private UInt64 randao_skips;
   public UInt64 balance;
   public UInt64 status;
-  private UInt64 last_status_change_slot;
+  public UInt64 latest_status_change_slot;
   private UInt64 exit_count;
 
   public ValidatorRecord() {

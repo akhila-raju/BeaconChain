@@ -71,6 +71,16 @@ public class BeaconState {
 
 
   /**
+   * Checks if ``validator`` is active
+   * @param validator
+   * @return
+   */
+  private boolean is_active_validator(ValidatorRecord validator) {
+    return validator.status == UInt64.valueOf(ACTIVE) || validator.status == UInt64.valueOf(ACTIVE_PENDING_EXIT);
+  }
+
+
+  /**
    * Gets indices of active validators from ``validators``.
    * @param validators
    * @return
@@ -79,7 +89,7 @@ public class BeaconState {
     int index = 0;
     int[] active_validators = new int[];
     for (int i = 0; i < validators.length; i++) {
-      if (validators[i].status == UInt64.valueOf(ACTIVE) || validators[i].status == UInt64.valueOf(ACTIVE_PENDING_EXIT)) {
+      if (is_active_validator(validators[i])) {
         active_validators[index] = i;
         index++;
       }
@@ -170,6 +180,23 @@ public class BeaconState {
 
 
   /**
+   *
+   * @param latest_block
+   * @param latest_hash
+   * @return
+   */
+  private Hash[] get_updated_ancestor_hashes(BeaconBlock latest_block, Hash latest_hash) {
+    Hash[] new_ancestor_hashes = latest_block.ancestor_hashes.clone();
+    for (int i = 0; i < 32; i++) {
+      if (latest_block.slot.getValue() % Math.pow(2, i) == 0) {
+        new_ancestor_hashes[i] = latest_hash;
+      }
+    }
+    return new_ancestor_hashes;
+  }
+
+
+  /**
    *   Returns the participant indices at for the ``attestation_data`` and ``participation_bitfield``.
    * @param state
    * @param attestation_data
@@ -204,7 +231,7 @@ public class BeaconState {
 
 
   /**
-   *   Returns the effective balance (also known as "balance at stake") for the ``validator``.
+   * Returns the effective balance (also known as "balance at stake") for the ``validator``.
    * @param validator
    * @return
    */
@@ -223,11 +250,10 @@ public class BeaconState {
    */
   private Hash get_new_validator_registry_delta_chain_tip(Hash current_validator_registry_delta_chain_tip,
                                                           int index, int pubkey, int flag) {
-//    return Hash.hash(current_validator_registry_delta_chain_tip +
-//            bytes1(flag) +
-//            bytes3(index) +
-//            bytes32(pubkey);
-//)
+    return Hash.hash(current_validator_registry_delta_chain_tip +
+            Bytes1(flag) +
+            Bytes3(index) +
+            Bytes32(pubkey))
   }
 
 
@@ -240,6 +266,20 @@ public class BeaconState {
    */
   private int get_domain(ForkData fork_data, int slot, int domain_type) {
     return get_fork_version(fork_data, slot) * (int) Math.pow(2, 32) + domain_type;
+  }
+
+
+  private def verify_casper_votes(state: BeaconState, votes: SlashableVoteData) -> bool:
+      if len(votes.aggregate_signature_poc_0_indices) + len(votes.aggregate_signature_poc_1_indices) > MAX_CASPER_VOTES:
+      return False
+
+  pubs = [aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_0_indices]),
+  aggregate_pubkey([state.validators[i].pubkey for i in votes.aggregate_signature_poc_1_indices])]
+      return BLSMultiVerify(pubkeys=pubs, msgs=[SSZTreeHash(votes)+bytes1(0), SSZTreeHash(votes)+bytes1(1), sig=aggregate_signature)
+
+
+  private boolean verify_casper_votes(BeaconState state, SlashableVoteData votes) {
+
   }
 
 
@@ -259,12 +299,22 @@ public class BeaconState {
   }
 
 
-//  def min_empty_validator_index(validators: List[ValidatorRecord], current_slot: int) -> int:
-//      for i, v in enumerate(validators):
-//      if v.balance == 0 and v.latest_status_change_slot + ZERO_BALANCE_VALIDATOR_TTL <= current_slot:
-//      return i
-//    return None
-
+  /**
+   *
+   * @param validators
+   * @param current_slot
+   * @return
+   */
+  private int min_empty_validator_index(ValidatorRecord[] validators, int current_slot) {
+    for (int i = 0; i < validators.length; i++) {
+      ValidatorRecord v = validators[i];
+      if (v.balance == UInt64.valueOf(0) && v.latest_status_change_slot.getValue() + ZERO_BALANCE_VALIDATOR_TTL
+          <= current_slot) {
+        return i;
+      }
+    }
+    return -1;
+  }
 
   private int get_fork_version(ForkData fork_data, int slot) {
     if (slot < fork_data.fork_slot.getValue()) {
@@ -272,6 +322,10 @@ public class BeaconState {
     }
     return (int) fork_data.post_fork_version.getValue();
   }
+
+
+
+
 
 
 
