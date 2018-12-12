@@ -19,6 +19,8 @@ import net.consensys.beaconchain.util.uint.Int256;
 import net.consensys.beaconchain.util.uint.UInt256;
 import net.consensys.beaconchain.util.uint.UInt256Bytes;
 
+import com.google.common.annotations.VisibleForTesting;
+
 
 /**
  * A {@link BytesValue} that is guaranteed to contain exactly 3 bytes.
@@ -31,6 +33,23 @@ public interface Bytes3 extends BytesValue {
   Bytes3 FALSE = UInt256Bytes.ofBytes3(0);
   Bytes3 TRUE = UInt256Bytes.ofBytes3(1);
   Bytes3 ZERO = wrap(new byte[3]);
+
+  /**
+   * Converts int to Bytes3.
+   *
+   * @param seed  converted
+   * @return      converted Bytes3
+   * @throws IllegalArgumentException if seed is a negative value.
+   */
+  @VisibleForTesting
+  static Bytes3 intToBytes3(int seed) {
+    checkArgument(seed > 0, "Expected positive seed but got %s", seed);
+    byte[] bytes = new byte[3];
+    bytes[0] = (byte) (seed >> 16);
+    bytes[1] = (byte) (seed >> 8);
+    bytes[2] = (byte) seed;
+    return Bytes3.wrap(bytes);
+  }
 
   /**
    * Wraps the provided byte array, which must be of length 3, as a {@link Bytes3}.

@@ -19,6 +19,8 @@ import net.consensys.beaconchain.util.uint.Int256;
 import net.consensys.beaconchain.util.uint.UInt256;
 import net.consensys.beaconchain.util.uint.UInt256Bytes;
 
+import com.google.common.annotations.VisibleForTesting;
+
 
 /**
  * A {@link BytesValue} that is guaranteed to contain exactly 1 byte.
@@ -31,6 +33,20 @@ public interface Bytes1 extends BytesValue {
   Bytes1 FALSE = UInt256Bytes.ofBytes1(0);
   Bytes1 TRUE = UInt256Bytes.ofBytes1(1);
   Bytes1 ZERO = wrap(new byte[1]);
+
+  /**
+   * Converts int to Bytes1.
+   *
+   * @param seed  converted
+   * @return      converted Bytes1
+   * @throws IllegalArgumentException if seed is a negative value.
+   */
+  @VisibleForTesting
+  static Bytes1 intToBytes1(int seed) {
+    checkArgument(seed > 0, "Expected positive seed but got %s", seed);
+    byte[] bytes = new byte[]{(byte) seed};
+    return Bytes1.wrap(bytes);
+  }
 
   /**
    * Wraps the provided byte array, which must be of length 1, as a {@link Bytes1}.
