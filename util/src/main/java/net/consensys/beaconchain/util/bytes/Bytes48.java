@@ -15,9 +15,12 @@ package net.consensys.beaconchain.util.bytes;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import net.consensys.beaconchain.util.uint.Int256;
 import net.consensys.beaconchain.util.uint.UInt256;
 import net.consensys.beaconchain.util.uint.UInt256Bytes;
+
+import java.util.Arrays;
 
 
 /**
@@ -31,6 +34,25 @@ public interface Bytes48 extends BytesValue {
   Bytes48 FALSE = UInt256Bytes.ofBytes48(0);
   Bytes48 TRUE = UInt256Bytes.ofBytes48(1);
   Bytes48 ZERO = wrap(new byte[48]);
+
+  /**
+   * Converts int to Bytes48.
+   *
+   * @param seed  converted
+   * @return      converted Bytes48
+   * @throws IllegalArgumentException if seed is a negative value.
+   */
+  @VisibleForTesting
+  static Bytes48 intToBytes48(int seed) {
+    checkArgument(seed > 0, "Expected positive seed but got %s", seed);
+    byte[] bytes = new byte[48];
+    for (int i = 0; i < 48; i++) {
+      bytes[i] = (byte) ((seed >> ((47 - i) * 8)) & 0xFF);
+    }
+    System.out.println(Arrays.toString(bytes));
+    return Bytes48.wrap(bytes);
+  }
+
 
   /**
    * Wraps the provided byte array, which must be of length 48, as a {@link Bytes48}.
